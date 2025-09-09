@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # ChunkVault API metrics
+  - job_name: "chunkvault-api"
+    static_configs:
+      - targets: ["chunkvault-api:8000"]
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+
+  # Storage nodes metrics
+  - job_name: "storage-nodes"
+    static_configs:
+      - targets:
+          - "storage-node-1:8001"
+          - "storage-node-2:8002"
+          - "storage-node-3:8003"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+
+  # Prometheus itself
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

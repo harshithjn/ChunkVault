@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chunkvault-ui
+  namespace: chunkvault
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chunkvault-ui
+  template:
+    metadata:
+      labels:
+        app: chunkvault-ui
+    spec:
+      containers:
+        - name: chunkvault-ui
+          image: chunkvault:latest
+          command:
+            [
+              "streamlit",
+              "run",
+              "streamlit_app.py",
+              "--server.port=8501",
+              "--server.address=0.0.0.0",
+            ]
+          ports:
+            - containerPort: 8501
+          env:
+            - name: API_BASE_URL
+              value: "http://chunkvault-api:8000"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chunkvault-ui
+  namespace: chunkvault
+spec:
+  selector:
+    app: chunkvault-ui
+  ports:
+    - port: 8501
+      targetPort: 8501
+  type: ClusterIP
