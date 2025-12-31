@@ -30,8 +30,8 @@ from prometheus_client import Counter, Histogram, Gauge
 import time
 
 # Import our custom modules
-from cache import cache_manager
-from celery_app import replicate_chunk, verify_file_integrity
+from Scripts.cache import cache_manager
+from Scripts.celery_app import replicate_chunk, verify_file_integrity
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "chunkvault-super-secret-key-change-in-production")

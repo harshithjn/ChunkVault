@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app import app, Base, get_db, get_current_user
-from cache import CacheManager
+from Scripts.cache import CacheManager
 import redis
 
 # Test configuration
