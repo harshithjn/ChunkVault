@@ -1,0 +1,23 @@
+# Python virtualenv and caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local databases and locks
+*.db
+*.sqlite
+*.log
+.web/
+
+# Project storage and runtime mounts
+storage/
+data/
+
+# IDE files
+.vscode/
+.idea/
+.DS_Store

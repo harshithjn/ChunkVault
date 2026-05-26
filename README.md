@@ -1,51 +1,63 @@
 # ChunkVault
 
-**Production-Grade Distributed File Storage System** – A fault-tolerant, scalable file storage solution built with Python, FastAPI, Streamlit, PostgreSQL, Redis, Celery, and Kubernetes.
+**Production-Grade Distributed File Storage System** – A fault-tolerant, scalable, and highly available file storage solution built with Python, Flask, vanilla HTML/CSS/JS (served from Flask), PostgreSQL, Redis, and Celery.
 
-## Features
+## Core Features
 
-### Core Features
+- **User Authentication** – Secure JWT-based registration and login with local session caching.
+- **File Slicing & Merging** – Large files are sliced into standard 4MB chunks for parallel storage and reconstructed dynamically on download.
+- **Chunk Replication** – Synchronous replication factor of 3 across distinct distributed storage nodes (`node-1`, `node-2`, `node-3`) for quorum-based fault tolerance.
+- **Expiring Shared Assets** – Temporary share tokens with a 24-hour automatic expiration, complete with a beautiful download lander.
+- **Premium SPA Interface** – Modern glassmorphism dark-theme dashboard featuring real-time cluster health logs, stats gauges, category tracking progress rings, and interactive drag-and-drop uploads.
+- **High-Performance Caching** – Redis integration to cache heavy file indexes, shared asset tokens, and binary chunk buffers to optimize high concurrency.
+- **Observability** – Native Prometheus metrics collection for duration histograms, active socket tracking, and storage cluster pings.
 
-- User Authentication – Secure JWT-based login and registration
-- File Management – Upload, download, and organize files using chunk-based storage
-- File Sharing – Generate shareable links with expiration
-- Chunk Replication – Files are split into chunks and replicated across storage nodes
-- High Performance – Optimized for concurrent users with Redis caching
-- Professional UI – Clean and modern Streamlit web interface
-
-### Production Features
-
-- PostgreSQL Database – Reliable metadata storage with migrations
-- Redis Caching – Fast access to metadata and files
-- Celery Workers – Asynchronous background processing
-- Prometheus Metrics – System monitoring and observability
-- Grafana Dashboards – Real-time analytics and monitoring
-- Kubernetes Ready – Container orchestration with auto-scaling
-- CI/CD Pipeline – Automated testing and deployment
-- Docker Compose – Simple local development setup
-
-## Architecture
-
-### Production Architecture
+## System Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web UI        │    │   API Service   │    │  Storage Nodes  │
-│  (Streamlit)    │◄──►│   (FastAPI)     │◄──►│   (FastAPI)     │
-│   Port: 8501    │    │   Port: 8000    │    │ Ports: 8001-8003│
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostgreSQL    │    │     Redis       │    │   Celery        │
-│   (Metadata)    │◄──►│   (Cache/Queue) │◄──►│   (Workers)     │
-│   Port: 5432    │    │   Port: 6379    │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   Prometheus    │
-                       │   + Grafana     │
-                       │   (Monitoring)  │
-                       └─────────────────┘
+┌──────────────────────────────────────────────┐
+│                  Client Browser              │
+└──────────────────────┬───────────────────────┘
+                       │ (HTTP/JSON on Port 8000)
+                       ▼
+┌──────────────────────────────────────────────┐
+│           Flask Core API & Web UI            │
+│             (Port 8000 / Single-Origin)      │
+└──────────┬───────────┬───────────┬───────────┘
+           │           │           │
+           ▼           ▼           ▼
+     ┌───────────┐┌─────────┐┌───────────┐
+     │PostgreSQL ││  Redis  ││  Celery   │
+     │(Metadata) ││ (Cache) ││ (Workers) │
+     └───────────┘└────┬────┘└─────┬─────┘
+                       │           │
+                       ▼           ▼
+┌──────────────────────────────────────────────┐
+│               Storage Nodes                  │
+│       Node-1      Node-2      Node-3         │
+│     Port: 8001  Port: 8002  Port: 8003       │
+└──────────────────────────────────────────────┘
+```
+
+## Running the Cluster Locally
+
+Ensure you have [Docker](https://www.docker.com/) and Docker Compose installed.
+
+### 1. Build and Run
+Start the entire clustered system (PostgreSQL, Redis, Flask API, three storage nodes, Celery worker/beat scheduler, Prometheus, and Grafana) with a single command:
+```bash
+docker compose up --build
+```
+
+### 2. Access points
+- **Web Dashboard & API**: [http://localhost:8000](http://localhost:8000)
+  - Default Admin Account: `admin` / `admin123`
+- **Prometheus Metrics**: [http://localhost:8000/metrics](http://localhost:8000/metrics)
+- **Grafana Panel**: [http://localhost:3000](http://localhost:3000) (Admin credentials: `admin` / `admin`)
+- **Prometheus Dashboard**: [http://localhost:9090](http://localhost:9090)
+
+## Running Unit Tests
+To run the automated pytest suite locally:
+```bash
+PYTHONPATH=. pytest Scripts/test_chunkvault.py
 ```

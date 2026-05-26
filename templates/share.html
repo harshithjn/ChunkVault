@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Shared Asset | ChunkVault</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #000000;
+            --panel-bg: #09090b;
+            --panel-border: #27272a;
+            --panel-border-hover: #3f3f46;
+            --primary: #ffffff;
+            --primary-hover: #e4e4e7;
+            --text-main: #fafafa;
+            --text-muted: #a1a1aa;
+            --text-dark: #52525b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --transition-speed: 0.2s;
+            --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            overflow: hidden;
+        }
+
+        /* Sleek card */
+        .share-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 420px;
+            padding: 3rem 2.25rem;
+            text-align: center;
+            animation: scaleIn 0.3s var(--ease-standard);
+        }
+
+        .logo-area {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .logo-icon {
+            font-size: 1.05rem;
+            color: var(--text-main);
+        }
+
+        .logo-text {
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: -0.6px;
+            color: var(--text-main);
+        }
+
+        .file-icon-wrapper {
+            width: 58px;
+            height: 58px;
+            background: var(--bg-color);
+            border: 1px solid var(--panel-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.25rem auto;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+        }
+
+        .file-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 6px;
+            word-break: break-all;
+            line-height: 1.3;
+            letter-spacing: -0.4px;
+        }
+
+        .file-meta-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+            padding: 5px 10px;
+            background: var(--bg-color);
+            border-radius: 4px;
+            border: 1px solid var(--panel-border);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all var(--transition-speed) var(--ease-standard);
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            outline: none;
+        }
+
+        .btn-primary {
+            background-color: var(--text-main);
+            color: var(--bg-color);
+            border: 1px solid var(--text-main);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            border-color: var(--panel-border-hover);
+        }
+
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+
+        .footer-text {
+            font-size: 0.65rem;
+            color: var(--text-dark);
+            margin-top: 1.75rem;
+            line-height: 1.4;
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.99);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="share-card">
+        <!-- Logo -->
+        <div class="logo-area">
+            <i class="fa-solid fa-server logo-icon"></i>
+            <h2 class="logo-text">ChunkVault</h2>
+        </div>
+
+        <!-- Content conditional rendering on frontend -->
+        {% if error %}
+            <!-- Expired or Not Found State -->
+            <div class="file-icon-wrapper" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.15);">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <h3 class="file-name">Asset Link Expired</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem; padding: 0 10px;">
+                This shared link has expired (tokens are valid for 24 hours) or is invalid on the storage cluster.
+            </p>
+            <a href="/" class="btn btn-primary" style="background: transparent; border: 1px solid var(--panel-border); color: var(--text-main);">
+                Go to ChunkVault
+            </a>
+        {% else %}
+            <!-- Healthy Download State -->
+            <div class="file-icon-wrapper">
+                <i class="fa-regular fa-file" id="sharedFileIcon"></i>
+            </div>
+            
+            <h3 class="file-name" title="{{ filename }}">{{ filename }}</h3>
+            
+            <div class="file-meta-row">
+                <div class="meta-item"><i class="fa-solid fa-hard-drive"></i> <span id="sharedSize">{{ size_formatted }}</span></div>
+                <div class="meta-item"><i class="fa-regular fa-calendar"></i> <span>24h Expiry</span></div>
+            </div>
+
+            <button onclick="triggerSharedDownload()" class="btn btn-primary">
+                Download Secure Asset
+            </button>
+            
+            <div id="loaderStatus" style="display: none; margin-top: 1rem; font-size: 0.75rem; color: var(--text-dark);">
+                <i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 6px;"></i> Re-assembling chunk segments...
+            </div>
+        {% endif %}
+
+        <div class="footer-text">
+            Protected by ChunkVault Cryptographic Quorum.<br>
+            Multi-node distributed verification active.
+        </div>
+    </div>
+
+    <script>
+        // Set dynamic folder icon type
+        window.addEventListener("DOMContentLoaded", () => {
+            const filename = "{{ filename }}".toLowerCase();
+            const icon = document.getElementById("sharedFileIcon");
+            if (!icon) return;
+
+            if (filename.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) {
+                icon.className = "fa-regular fa-file-image";
+            } else if (filename.match(/\.(mp4|mkv|webm|avi|mov)$/)) {
+                icon.className = "fa-regular fa-file-video";
+            } else if (filename.match(/\.(mp3|wav|ogg|flac)$/)) {
+                icon.className = "fa-regular fa-file-audio";
+            } else if (filename.endsWith('.pdf')) {
+                icon.className = "fa-regular fa-file-pdf";
+            } else if (filename.match(/\.(zip|rar|tar|gz|7z)$/)) {
+                icon.className = "fa-regular fa-file-zipper";
+            } else if (filename.match(/\.(txt|md|html|css|js|json|py)$/)) {
+                icon.className = "fa-regular fa-file-lines";
+            } else {
+                icon.className = "fa-regular fa-file";
+            }
+        });
+
+        // Trigger Shared download
+        function triggerSharedDownload() {
+            const status = document.getElementById("loaderStatus");
+            if (status) status.style.display = "block";
+
+            window.location.href = "/api/share/{{ share_token }}/download";
+
+            setTimeout(() => {
+                if (status) status.style.display = "none";
+            }, 6000);
+        }
+    </script>
+</body>
+</html>

@@ -1,19 +1,12 @@
 """
 ChunkVault Storage Node
-Lightweight storage service for chunk storage and retrieval
+Lightweight storage service for chunk storage and retrieval (Flask implementation)
 """
 import os
-import asyncio
-import aiofiles
-from pathlib import Path
-from typing import Optional
-from fastapi import FastAPI, HTTPException, UploadFile, File, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-import uvicorn
-import io
 import hashlib
 import shutil
+from pathlib import Path
+from flask import Flask, request, jsonify, send_file
 
 # Configuration
 NODE_ID = os.getenv("NODE_ID", "node-1")
@@ -24,6 +17,9 @@ MAX_CHUNK_SIZE = 100 * 1024 * 1024  # 100MB
 
 # Ensure storage directory exists
 STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+
+# Flask application
+app = Flask(__name__)
 
 def get_chunk_path(chunk_id: str) -> Path:
     """Get the file path for a chunk"""
@@ -37,204 +33,160 @@ def calculate_checksum(data: bytes) -> str:
     """Calculate SHA-256 checksum"""
     return hashlib.sha256(data).hexdigest()
 
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Initialize storage node"""
-    print(f"Storage node {NODE_ID} started on {HOST}:{PORT}")
-    print(f"Storage path: {STORAGE_PATH.absolute()}")
-    yield
-
-# FastAPI app
-app = FastAPI(
-    title=f"ChunkVault Storage Node {NODE_ID}",
-    description="Storage node service for distributed file storage",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
-async def root():
-    return {
-        "message": f"ChunkVault Storage Node {NODE_ID}",
-        "version": "1.0.0",
-        "node_id": NODE_ID
-    }
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    try:
-        stats = get_storage_stats()
-        return {
-            "status": "healthy",
-            "service": "storage_node",
-            "node_id": NODE_ID,
-            "storage_stats": stats
-        }
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
-
-@app.post("/chunk/{chunk_id}")
-async def store_chunk(chunk_id: str, file: UploadFile = File(...)):
-    """Store a chunk"""
-    try:
-        # Read chunk data
-        chunk_data = await file.read()
-        
-        # Validate chunk size
-        if len(chunk_data) > MAX_CHUNK_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"Chunk size exceeds maximum allowed size of {MAX_CHUNK_SIZE} bytes"
-            )
-        
-        # Calculate checksum
-        checksum = calculate_checksum(chunk_data)
-        
-        # Store chunk
-        chunk_path = get_chunk_path(chunk_id)
-        async with aiofiles.open(chunk_path, "wb") as f:
-            await f.write(chunk_data)
-        
-        return {
-            "chunk_id": chunk_id,
-            "checksum": checksum,
-            "size": len(chunk_data),
-            "status": "stored"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error storing chunk: {str(e)}"
-        )
-
-@app.get("/chunk/{chunk_id}")
-async def retrieve_chunk(chunk_id: str):
-    """Retrieve a chunk"""
-    try:
-        chunk_path = get_chunk_path(chunk_id)
-        
-        if not chunk_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Chunk not found"
-            )
-        
-        # Read chunk data
-        async with aiofiles.open(chunk_path, "rb") as f:
-            chunk_data = await f.read()
-        
-        # Return chunk as streaming response
-        return StreamingResponse(
-            io.BytesIO(chunk_data),
-            media_type="application/octet-stream",
-            headers={
-                "Content-Disposition": f"attachment; filename={chunk_id}",
-                "X-Chunk-ID": chunk_id,
-                "X-Chunk-Size": str(len(chunk_data))
-            }
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving chunk: {str(e)}"
-        )
-
-@app.delete("/chunk/{chunk_id}")
-async def delete_chunk(chunk_id: str):
-    """Delete a chunk"""
-    try:
-        chunk_path = get_chunk_path(chunk_id)
-        
-        if chunk_path.exists():
-            chunk_path.unlink()
-        
-        return {"chunk_id": chunk_id, "status": "deleted"}
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting chunk: {str(e)}"
-        )
-
-@app.get("/chunk/{chunk_id}/info")
-async def get_chunk_info(chunk_id: str):
-    """Get chunk information"""
-    try:
-        chunk_path = get_chunk_path(chunk_id)
-        
-        if not chunk_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Chunk not found"
-            )
-        
-        chunk_size = chunk_path.stat().st_size
-        
-        return {
-            "chunk_id": chunk_id,
-            "size": chunk_size,
-            "exists": True
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting chunk info: {str(e)}"
-        )
-
 def get_storage_stats() -> dict:
     """Get storage statistics"""
     total_size = 0
     chunk_count = 0
     
-    for root, dirs, files in os.walk(STORAGE_PATH):
+    for root_dir, dirs, files in os.walk(STORAGE_PATH):
         for file in files:
-            file_path = Path(root) / file
+            file_path = Path(root_dir) / file
             total_size += file_path.stat().st_size
             chunk_count += 1
-    
+            
+    try:
+        available_space = shutil.disk_usage(STORAGE_PATH).free
+    except Exception:
+        available_space = 1000 * 1024 * 1024  # 1GB fallback
+        
     return {
         "total_size": total_size,
         "chunk_count": chunk_count,
-        "available_space": shutil.disk_usage(STORAGE_PATH).free
+        "available_space": available_space
     }
 
-@app.get("/storage/stats")
-async def storage_stats():
-    """Get storage statistics"""
+# CORS headers middleware
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    return response
+
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({
+        "message": f"ChunkVault Storage Node {NODE_ID}",
+        "version": "1.0.0",
+        "node_id": NODE_ID
+    }), 200
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Health check endpoint"""
     try:
         stats = get_storage_stats()
-        return {
+        return jsonify({
+            "status": "healthy",
+            "service": "storage_node",
             "node_id": NODE_ID,
             "storage_stats": stats
-        }
+        }), 200
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting storage stats: {str(e)}"
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        }), 500
+
+@app.route("/chunk/<chunk_id>", methods=["POST"])
+def store_chunk(chunk_id):
+    """Store a chunk"""
+    try:
+        # Supports raw octet-stream bytes or multipart form file upload
+        if "file" in request.files:
+            chunk_data = request.files["file"].read()
+        else:
+            chunk_data = request.data
+            
+        if not chunk_data:
+            return jsonify({"detail": "Empty chunk data"}), 400
+            
+        # Validate size
+        if len(chunk_data) > MAX_CHUNK_SIZE:
+            return jsonify({"detail": f"Chunk size exceeds maximum allowed size of {MAX_CHUNK_SIZE} bytes"}), 413
+            
+        # Calculate checksum
+        checksum = calculate_checksum(chunk_data)
+        
+        # Store chunk
+        chunk_path = get_chunk_path(chunk_id)
+        with open(chunk_path, "wb") as f:
+            f.write(chunk_data)
+            
+        return jsonify({
+            "chunk_id": chunk_id,
+            "checksum": checksum,
+            "size": len(chunk_data),
+            "status": "stored"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"detail": f"Error storing chunk: {str(e)}"}), 500
+
+@app.route("/chunk/<chunk_id>", methods=["GET"])
+def retrieve_chunk(chunk_id):
+    """Retrieve a chunk"""
+    try:
+        chunk_path = get_chunk_path(chunk_id)
+        
+        if not chunk_path.exists():
+            return jsonify({"detail": "Chunk not found"}), 404
+            
+        chunk_size = chunk_path.stat().st_size
+        
+        # Return chunk file stream
+        response = send_file(
+            chunk_path,
+            mimetype="application/octet-stream",
+            as_attachment=True,
+            download_name=chunk_id
         )
+        response.headers["X-Chunk-ID"] = chunk_id
+        response.headers["X-Chunk-Size"] = str(chunk_size)
+        return response
+        
+    except Exception as e:
+        return jsonify({"detail": f"Error retrieving chunk: {str(e)}"}), 500
+
+@app.route("/chunk/<chunk_id>", methods=["DELETE"])
+def delete_chunk(chunk_id):
+    """Delete a chunk"""
+    try:
+        chunk_path = get_chunk_path(chunk_id)
+        if chunk_path.exists():
+            chunk_path.unlink()
+        return jsonify({"chunk_id": chunk_id, "status": "deleted"}), 200
+    except Exception as e:
+        return jsonify({"detail": f"Error deleting chunk: {str(e)}"}), 500
+
+@app.route("/chunk/<chunk_id>/info", methods=["GET"])
+def get_chunk_info(chunk_id):
+    """Get chunk information"""
+    try:
+        chunk_path = get_chunk_path(chunk_id)
+        if not chunk_path.exists():
+            return jsonify({"detail": "Chunk not found"}), 404
+            
+        chunk_size = chunk_path.stat().st_size
+        return jsonify({
+            "chunk_id": chunk_id,
+            "size": chunk_size,
+            "exists": True
+        }), 200
+    except Exception as e:
+        return jsonify({"detail": f"Error getting chunk info: {str(e)}"}), 500
+
+@app.route("/storage/stats", methods=["GET"])
+def storage_stats():
+    """Get storage node stats"""
+    try:
+        stats = get_storage_stats()
+        return jsonify({
+            "node_id": NODE_ID,
+            "storage_stats": stats
+        }), 200
+    except Exception as e:
+        return jsonify({"detail": f"Error getting storage stats: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=HOST, port=PORT)
+    app.run(host=HOST, port=PORT)

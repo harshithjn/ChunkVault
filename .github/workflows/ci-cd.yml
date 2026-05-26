@@ -58,7 +58,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-cov
+          pip install pytest pytest-cov
 
       - name: Run linting
         run: |
@@ -72,8 +72,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chunkvault_test
           REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: test-secret-key
+          PYTHONPATH: .
         run: |
-          pytest --cov=. --cov-report=xml
+          pytest Scripts/test_chunkvault.py --cov=. --cov-report=xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -131,46 +132,32 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
-    environment: production
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+      - name: Copy deployment files to droplet server
+        uses: appleboy/scp-action@v0.1.7
         with:
-          version: "latest"
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml,prometheus.yml,grafana/,Scripts/init.sql"
+          target: "~/chunkvault"
 
-      - name: Configure kubectl
-        run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
-          export KUBECONFIG=kubeconfig
-
-      - name: Deploy to Kubernetes
-        run: |
-          # Update image tag in deployment manifests
-          sed -i "s|chunkvault:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" k8s/api/api-deployment.yaml
-          sed -i "s|chunkvault:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" k8s/api/celery.yaml
-          sed -i "s|chunkvault:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" k8s/storage/storage-nodes.yaml
-          sed -i "s|chunkvault:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest|g" k8s/api/ui.yaml
-
-          # Apply Kubernetes manifests
-          kubectl apply -f k8s/infrastructure/namespace.yaml
-          kubectl apply -f k8s/infrastructure/postgres.yaml
-          kubectl apply -f k8s/infrastructure/redis.yaml
-          kubectl apply -f k8s/storage/storage-nodes.yaml
-          kubectl apply -f k8s/api/api-deployment.yaml
-          kubectl apply -f k8s/api/celery.yaml
-          kubectl apply -f k8s/api/ui.yaml
-          kubectl apply -f k8s/monitoring/prometheus.yaml
-          kubectl apply -f k8s/monitoring/grafana.yaml
-
-          # Wait for deployments to be ready
-          kubectl wait --for=condition=available --timeout=300s deployment/chunkvault-api -n chunkvault
-          kubectl wait --for=condition=available --timeout=300s deployment/chunkvault-ui -n chunkvault
-
-      - name: Verify deployment
-        run: |
-          kubectl get pods -n chunkvault
-          kubectl get services -n chunkvault
+      - name: Deploy cluster via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/chunkvault
+            # Authenticate with GitHub Container Registry
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Pull latest built containers and relaunch cluster in daemon mode
+            docker compose pull
+            docker compose down --remove-orphans
+            docker compose up -d --build
+            # Verify node containers status
+            docker compose ps

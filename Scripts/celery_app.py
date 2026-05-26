@@ -21,7 +21,7 @@ celery_app = Celery(
     "chunkvault",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["celery_app"]
+    include=["Scripts.celery_app"]
 )
 
 celery_app.conf.update(
@@ -46,11 +46,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 redis_client = redis.from_url(REDIS_URL)
 
 # Storage nodes configuration
-STORAGE_NODES = [
-    "http://localhost:8001",
-    "http://localhost:8002", 
-    "http://localhost:8003"
-]
+STORAGE_NODES_ENV = os.getenv("STORAGE_NODES")
+if STORAGE_NODES_ENV:
+    STORAGE_NODES = STORAGE_NODES_ENV.split(",")
+else:
+    STORAGE_NODES = [
+        "http://localhost:8001",
+        "http://localhost:8002", 
+        "http://localhost:8003"
+    ]
 
 @celery_app.task(bind=True, name="chunkvault.replicate_chunk")
 def replicate_chunk(self, chunk_id: str, chunk_data: bytes, storage_nodes: List[str], replication_factor: int = 3):
