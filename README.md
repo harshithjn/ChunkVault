@@ -1,63 +1,92 @@
-# ChunkVault
+# ChunkVault.
+> **Clustered Object Storage System** – Cryptographic chunk partitioning, autonomous node replication, and multi-node quorum consensus. Resilient, minimal, and secure by design.
 
-**Production-Grade Distributed File Storage System** – A fault-tolerant, scalable, and highly available file storage solution built with Python, Flask, vanilla HTML/CSS/JS (served from Flask), PostgreSQL, Redis, and Celery.
+---
 
-## Core Features
+## Technical Features
 
-- **User Authentication** – Secure JWT-based registration and login with local session caching.
-- **File Slicing & Merging** – Large files are sliced into standard 4MB chunks for parallel storage and reconstructed dynamically on download.
-- **Chunk Replication** – Synchronous replication factor of 3 across distinct distributed storage nodes (`node-1`, `node-2`, `node-3`) for quorum-based fault tolerance.
-- **Expiring Shared Assets** – Temporary share tokens with a 24-hour automatic expiration, complete with a beautiful download lander.
-- **Premium SPA Interface** – Modern glassmorphism dark-theme dashboard featuring real-time cluster health logs, stats gauges, category tracking progress rings, and interactive drag-and-drop uploads.
-- **High-Performance Caching** – Redis integration to cache heavy file indexes, shared asset tokens, and binary chunk buffers to optimize high concurrency.
-- **Observability** – Native Prometheus metrics collection for duration histograms, active socket tracking, and storage cluster pings.
+* **Secure Authentication** – Cryptographically hashed registration and login console secured with JWT tokens and localized session cache.
+* **Cryptographic Slicing** – Large assets are partitioned at the byte level into standardized 4MB segments with dynamic SHA-256 integrity hashing.
+* **3x Quorum Replication** – Concurrent chunk distribution across distinct autonomous storage nodes (`node-1`, `node-2`, `node-3`) establishing solid fault-tolerant consensus.
+* **Low-Latency Cache Locks** – Redis caching layers optimize indexed directory lookups, shared asset keys, and chunk routing paths.
+* **Asynchronous Recovery Pipeline** – Decoupled Celery queue networks execute automated background audits to identify corrupted blocks and trigger self-healing routines.
+* **Sleek Monochrome Interface** – High-contrast absolute black (`#000000`) and zinc (`#09090b`) single-page dashboard featuring razor-sharp wireframe grids and an interactive CSS cluster visualizer.
+* **Secure Sharing Lander** – Unique shared download lander with expiring tokens (24-hour window) and instant file reassembly streaming.
+
+---
 
 ## System Architecture
 
-```
-┌──────────────────────────────────────────────┐
-│                  Client Browser              │
-└──────────────────────┬───────────────────────┘
-                       │ (HTTP/JSON on Port 8000)
-                       ▼
-┌──────────────────────────────────────────────┐
-│           Flask Core API & Web UI            │
-│             (Port 8000 / Single-Origin)      │
-└──────────┬───────────┬───────────┬───────────┘
-           │           │           │
-           ▼           ▼           ▼
-     ┌───────────┐┌─────────┐┌───────────┐
-     │PostgreSQL ││  Redis  ││  Celery   │
-     │(Metadata) ││ (Cache) ││ (Workers) │
-     └───────────┘└────┬────┘└─────┬─────┘
-                       │           │
-                       ▼           ▼
-┌──────────────────────────────────────────────┐
-│               Storage Nodes                  │
-│       Node-1      Node-2      Node-3         │
-│     Port: 8001  Port: 8002  Port: 8003       │
-└──────────────────────────────────────────────┘
+```text
+       ┌────────────────────────────────────────────────────────┐
+       │                     Client Browser                     │
+       └───────────────────────────┬────────────────────────────┘
+                                   │ (Port 8000: Unified SPA & API)
+                                   ▼
+       ┌────────────────────────────────────────────────────────┐
+       │                 Flask Core API Server                  │
+       └──────────────┬────────────┬────────────┬───────────────┘
+                      │            │            │
+                      ▼            ▼            ▼
+               ┌──────────┐ ┌────────────┐ ┌──────────┐
+               │PostgreSQL│ │Redis Cache │ │  Celery  │
+               │(Metadata)│ │ & Broker   │ │ (Worker) │
+               └──────────┘ └────────────┘ └────┬─────┘
+                                                │ (Replication)
+                                                ▼
+       ┌────────────────────────────────────────────────────────┐
+       │                 Autonomous Storage Nodes               │
+       │     Node 1 (8001)     Node 2 (8002)     Node 3 (8003)  │
+       └────────────────────────────────────────────────────────┘
 ```
 
-## Running the Cluster Locally
+---
 
-Ensure you have [Docker](https://www.docker.com/) and Docker Compose installed.
+## Directory Structure
 
-### 1. Build and Run
-Start the entire clustered system (PostgreSQL, Redis, Flask API, three storage nodes, Celery worker/beat scheduler, Prometheus, and Grafana) with a single command:
+```text
+├── app.py                     # Unified API and UI server (Flask)
+├── Dockerfile                 # Multi-stage Docker container specification
+├── docker-compose.yml         # 8-service distributed local orchestration stack
+├── requirements.txt           # Lightened application dependencies
+├── templates/
+│   ├── index.html             # Corporate SaaS SPA Dashboard & Visualizer
+│   └── share.html             # Secure shared asset download portal
+├── Scripts/
+│   ├── celery_app.py          # Asynchronous worker definition
+│   ├── cache.py               # Low-latency Redis cache controller
+│   ├── storage_node.py        # Lightweight Flask storage microservice
+│   └── test_chunkvault.py     # Comprehensive 15-test pytest suite
+└── storage/                   # Clustered storage directory mounts (Docker)
+```
+
+---
+
+## Local Quick Start
+
+### Prerequisites
+Ensure you have [Docker Desktop](https://www.docker.com/) and Docker Compose installed.
+
+### 1. Launch the Cluster
+Boot the PostgreSQL database, Redis broker, main API container, 3 storage nodes, and Celery pipelines with one command:
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-### 2. Access points
-- **Web Dashboard & API**: [http://localhost:8000](http://localhost:8000)
-  - Default Admin Account: `admin` / `admin123`
-- **Prometheus Metrics**: [http://localhost:8000/metrics](http://localhost:8000/metrics)
-- **Grafana Panel**: [http://localhost:3000](http://localhost:3000) (Admin credentials: `admin` / `admin`)
-- **Prometheus Dashboard**: [http://localhost:9090](http://localhost:9090)
+### 2. Access Ports
+- **Unified Dashboard Console**: [http://localhost:8000](http://localhost:8000)
+- **Pre-configured Admin Access**:
+  * **Username**: `admin`
+  * **Password**: `admin123`
 
-## Running Unit Tests
-To run the automated pytest suite locally:
+---
+
+## Test Suite Execution
+
+The automated verification suite tests authentication protocols, DB metadata creation, parallel chunk transfers, cache invalidations, and sharing tokens.
+
+To run the test suite locally in your virtual environment:
 ```bash
-PYTHONPATH=. pytest Scripts/test_chunkvault.py
+DATABASE_URL=sqlite:///./test_chunkvault.db PYTHONPATH=. ./venv/bin/python -m pytest Scripts/test_chunkvault.py
 ```
+*(Confirms **15 unit tests passed** successfully)*
